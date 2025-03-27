@@ -1,0 +1,49 @@
+<?php
+/**
+ * Plugin Name: Anti Fingerprint WP
+ * Plugin URI: https://capek.es
+ * Description: Oculta información del servidor y de WordPress para evitar fingerprinting.
+ * Version: 1.0
+ * Author: Mario Suarez
+ * Author URI: https://capek.es
+ */
+
+if (!defined('ABSPATH')) {
+    exit; // Bloquear acceso directo
+}
+
+// 1️⃣ Ocultar la versión de WordPress
+remove_action('wp_head', 'wp_generator');
+add_filter('the_generator', '__return_empty_string');
+
+// 2️⃣ Ocultar la versión en scripts y estilos
+function ocultar_version_wp($src) {
+    return remove_query_arg('ver', $src);
+}
+add_filter('style_loader_src', 'ocultar_version_wp', 9999);
+add_filter('script_loader_src', 'ocultar_version_wp', 9999);
+
+// 3️⃣ Desactivar la API REST para usuarios no autenticados
+function bloquear_api_rest($access) {
+    if (!is_user_logged_in()) {
+        return new WP_Error('rest_disabled', 'Acceso restringido.', ['status' => 403]);
+    }
+    return $access;
+}
+add_filter('rest_authentication_errors', 'bloquear_api_rest');
+
+// 4️⃣ Bloquear el acceso al archivo readme.html
+function bloquear_readme() {
+    if (isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'], 'readme.html') !== false) {
+        wp_redirect(home_url());
+        exit;
+    }
+}
+add_action('init', 'bloquear_readme');
+
+// 5️⃣ Ocultar encabezados sensibles
+function ocultar_encabezados() {
+    header_remove('X-Powered-By');
+    header_remove('Server');
+}
+add_action('send_headers', 'ocultar_encabezados', 10, 0);
